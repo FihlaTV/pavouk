@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<!-- This script will store in the field with id='results' the titles of all the movies with views over 100,000-->
+<html>
+<script type="text/javascript" >
+var baseUrl="https://archive.org/details/feature_films?and%5B%5D=mediatype%3A%22movies%22&sort=-downloads&page=";
+var count=1;
+var iframe;
+function onPageLoad(){
+	iframe=document.getElementById("iframe");
+	console.log("loading");
+	iframe.src=baseUrl+count++
+}
+function onFrameLoad() {
+	if(!iframe)return;
+	var output=document.getElementById("results")
+	var info=iframe.contentWindow.document.getElementsByClassName("C234");
+
+	for (var i=1;i<info.length;i+=2){
+		var views=info[i].previousElementSibling.firstElementChild.innerText.replace(/,/,"");
+		var metaData=info[i].innerText.replace(/\n*/,"\n").split("\n").join("\t");
+		metaData="";
+		var title=info[i].firstElementChild.firstElementChild.href.replace(/.*details\//,"")
+
+		if(i>10&&parseInt(views)<100000)
+			return;
+		output.innerHTML+=title+"\n";
+		console.log(views+" "+parseInt(views))
+		
+	}
+	iframe.src=baseUrl+count++
+}
+</script>
+<body onload="onPageLoad()">
+<iframe id="iframe" name="frame" onload="onFrameLoad()" ></iframe>
+<pre id=results>
+Info:
+
+
+</pre>
+</body>
+</html>
