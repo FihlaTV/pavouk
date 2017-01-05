@@ -7,7 +7,7 @@ currentDir=`pwd`
 
 #workingDir=$currentDir
 
-echo "" > $currentDir/debugging.txt
+echo "" > $currentDir/debugging.log
 
 #######Download metadata#####
 function downloadMetadata {
@@ -32,9 +32,9 @@ function parseMetadata {
 	description=$(parseXML "$workingDir/$var"_meta.xml description)
 	description=${description//\"/\'}
 	
-	echo "propperTitle: $propperTitle" >>$currentDir/debugging.txt
-	echo "author: $author" >>$currentDir/debugging.txt
-	echo "description: $description" >>$currentDir/debugging.txt
+	echo "propperTitle: $propperTitle" >>$currentDir/debugging.log
+	echo "author: $author" >>$currentDir/debugging.log
+	echo "description: $description" >>$currentDir/debugging.log
 	
 	
 	license_url=$(parseXML "$workingDir/$var"_meta.xml licenseurl license)
@@ -45,15 +45,10 @@ function convertVideoToMP4 {
 	videoFileName=`cat $workingDir/$var"_files.xml" |grep \<original\>|tail -1 |cut -d"<" -f2|cut -d">" -f2`
 	#`cat $var"_files.xml" |grep source=\"original\" |cut -d'"' -f2 |xargs`
 	
-	tempTitle=$(echo ${title//\'/''}| awk '{print tolower($0)}')
-	impropperTitle=$(echo ${tempTitle//[^a-zA-Z0-9]/-}| awk '{print tolower($0)}')
 	filePath="$workingDir/$propperTitle.mp4"
-	filePath2="$workingDir/$impropperTitle.mp4" 
+	
 	#If file does not exist
-	if [ "$filePath2" != "$filePath" ] && [ -s "$filePath2" ]; then
-		echo "moving $filePath2 to $filePath" 
-		mv $filePath2 $filePath
-	elif [ ! -s "$filePath" ]; then 
+	if [ ! -s "$filePath" ]; then 
 		echo "Getting video from $baseURL$videoFileName"
 		wget -nv -nc $baseURL$videoFileName
 		echo "Re-encoding $videoFileName ->  $filePath"
@@ -65,8 +60,7 @@ function convertVideoToMP4 {
 	if [ ! -s "$filePath" ]; then 
 		echo "file still does not exist: $filePath"
 		echo "path gotten from $baseURL$videoFileName"
-	fi
-		
+	fi	
 }
 
 function publish {
@@ -104,11 +98,13 @@ function main {
 		publish
 		cleanUp
 
+		########For testing purposes; 
 		if [ -a "$currentDir/die" ] ; then 
 			echo "kill signal received; exiting"
 			exit 0
 		else echo "$currentDir/die does not exists"
 		fi
+		########
 	done
 	echo "finished"
 }
@@ -119,4 +115,4 @@ function parseXML {
 	python3 $currentDir/parseXML.py "$name" ${@}
 }
 
-cat Movies2.csv |main
+cat movies.txt |main
