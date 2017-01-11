@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#Input File created with ScriptTOGetListOfFiles.html
+#Input File created with ScriptToGetListOfFiles.html
 input="Movies2.csv"
 workingDir="/mnt/volume-nyc1-02"
 currentDir=`pwd`
@@ -19,8 +19,12 @@ function downloadMetadata {
 function parseMetadata {
 	########################
 	#####Optional Thumbnail
-	#thumbnailPath="$workingDir/"`cat $var"_files.xml" |grep -Pzo -m1 "(?s)<file [^>]*>.\s*<format>Thumbnail" |head -2|tail -n1 |cut -d'"' -f2`
-	#wget -nv -nc $baseURL$thumbnailFileName
+	
+	thumbnailPath=`cat $var"_files.xml" |grep -Pzo -m1 "(?s)<file [^>]*>.\s*<format>Thumbnail" |head -2|tail -n1 |cut -d'"' -f2`
+	
+	extension=`echo $thumbnailPath |rev|cut -d"." -f2`|rev
+	thumbnailFileName=$var$extension
+	wget -O $thumbnailFileName -nv -nc $baseURL$thumbnailPath
 	##################
 	
 	title=$(parseXML "$workingDir/$var"_meta.xml title)
@@ -52,7 +56,7 @@ function convertVideoToMP4 {
 		echo "Getting video from $baseURL$videoFileName"
 		wget -nv -nc $baseURL$videoFileName
 		echo "Re-encoding $videoFileName ->  $filePath"
-		ffmpeg -hide_banner -loglevel panic -y -i $videoFileName -c:v libx264 -crf 22 -c:a aac -strict experimental -movflags faststart $filePath  &> /dev/null
+		ffmpeg -hide_banner -loglevel panic -y -i $videoFileName -c:v libx264 -crf 22 -c:a aac -strict experimental -movflags -g [same-number-as-framerate] faststart $filePath  &> /dev/null
 	else
 		echo "file is already in correct format"
 	fi
@@ -65,8 +69,7 @@ function convertVideoToMP4 {
 
 function publish {
 	echo "Publishing"
-	 #,"thumbnail":"'"$thumbnailFileName"'"
-	txid=$(lbrynet-cli publish '{"name":"'"$propperTitle"'","file_path":"'"$filePath"'","bid":0.000001,"metadata":{"ver": "0.0.3", "title": "'"$title"'", "author":"'"$author"'", "description": "'"$description"'", "nsfw":false,"language":"en","license":"'"$license_url"'"}}')
+	txid=$(/opt/venvs/lbrynet/bin/lbrynet-cli publish '{"name":"'"$propperTitle"'","file_path":"'"$filePath"'","bid":0.000001,"metadata":{"ver": "0.0.3", "title": "'"$title"'", "author":"'"$author"'", "description": "'"$description"'", "nsfw":false,"language":"en","license":"'"$license_url"'","thumbnail":"'"$thumbnailFileName"'"}}')
 	echo "txid=$txid"
 	if [ "$txid" != "null" ] && [ "$txid" != "" ]; then
 		echo "published $propperTitle"
