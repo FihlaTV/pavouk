@@ -1,5 +1,6 @@
 import xml.etree.ElementTree as ET
 import sys
+import re
 
 def parseXML (file,tags):
 	#checks tags in order
