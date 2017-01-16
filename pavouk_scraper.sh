@@ -1,65 +1,63 @@
 #!/bin/bash
 
 #Input File created with ScriptToGetListOfFiles.html
-input="Movies2.csv"
+input="movies.txt"
 workingDir="/mnt/volume-nyc1-02"
-currentDir=`pwd`
+currentDir=$(pwd)
 
-#workingDir=$currentDir
+workingDir="$currentDir"
 
-echo "" > $currentDir/debugging.log
+echo "" > "$currentDir/debugging.log"
 
 #######Download metadata#####
 function downloadMetadata {
 	baseURL="https://ia800300.us.archive.org/1/items/$var/"	
-	wget -nv -nc $baseURL$var"_files.xml"
-	wget -nv -nc $baseURL$var"_meta.xml"
+	wget -nv -nc "$baseURL$var""_files.xml"
+	wget -nv -nc "$baseURL$var""_meta.xml"
+	thumbnailFileName="$var"
+	wget -O "$thumbnailFileName" -nv -nc "https://archive.org/services/img/$var";
 }
 
 function parseMetadata {
-	########################
-	#####Optional Thumbnail
-	
-	thumbnailPath=`cat $var"_files.xml" |grep -Pzo -m1 "(?s)<file [^>]*>.\s*<format>Thumbnail" |head -2|tail -n1 |cut -d'"' -f2`
-	
-	extension=`echo $thumbnailPath |rev|cut -d"." -f2`|rev
-	thumbnailFileName=$var$extension
-	wget -O $thumbnailFileName -nv -nc $baseURL$thumbnailPath
-	##################
-	
+		
 	title=$(parseXML "$workingDir/$var"_meta.xml title)
-	adjustedTitle=$(echo ${title//\'/''}| awk '{print tolower($0)}' | tr -s " " |xargs)
-	propperTitle=$(echo ${adjustedTitle//[^a-zA-Z0-9]/-}| awk '{print tolower($0)}')
+	
+	propperTitle=$(echo "$title"| awk '{print tolower($0)}')
+	#remove apostrophes 	
+	propperTitle=${propperTitle//\'/''}
+	#remove spaces if less than n characters
+	if [ ${#propperTitle} -lt 20 ];then
+		propperTitle=$(echo "$adjustedTitle" | tr -s " " |xargs)
+	fi 
+	#remove non-alpha numeric characters	
+	propperTitle=${propperTitle//[^a-zA-Z0-9]/-}
 	
 	author=$(parseXML "$workingDir/$var"_meta.xml creator director)
 			
 	description=$(parseXML "$workingDir/$var"_meta.xml description)
 	description=${description//\"/\'}
 	
-	echo "propperTitle: $propperTitle" >>$currentDir/debugging.log
-	echo "author: $author" >>$currentDir/debugging.log
-	echo "description: $description" >>$currentDir/debugging.log
-	
+	{ echo "propperTitle: $propperTitle"; echo "author: $author";echo "description: $description";  }  >> "$currentDir/debugging.log"
 	
 	license_url=$(parseXML "$workingDir/$var"_meta.xml licenseurl license)
 }
 	######Download and re-encode movie#####
 function convertVideoToMP4 {
 
-	videoFileName=`cat $workingDir/$var"_files.xml" |grep \<original\>|tail -1 |cut -d"<" -f2|cut -d">" -f2`
+	videoFileName=$(grep \<original\> "$workingDir/$var""_files.xml" |tail -1 |cut -d"<" -f2|cut -d">" -f2)
 	#`cat $var"_files.xml" |grep source=\"original\" |cut -d'"' -f2 |xargs`
 	
 	filePath="$workingDir/$propperTitle.mp4"
 	
 	#If file does not exist
-	if [ ! -s "$filePath" ]; then 
+	#if [ ! -s "$filePath" ]; then 
 		echo "Getting video from $baseURL$videoFileName"
-		wget -nv -nc $baseURL$videoFileName
+		wget -nv -nc "$baseURL$videoFileName"
 		echo "Re-encoding $videoFileName ->  $filePath"
-		ffmpeg -hide_banner -loglevel panic -y -i $videoFileName -c:v libx264 -crf 22 -c:a aac -strict experimental -movflags -g [same-number-as-framerate] faststart $filePath  &> /dev/null
-	else
-		echo "file is already in correct format"
-	fi
+		ffmpeg -hide_banner -loglevel panic -y -i "$videoFileName" -c:v libx264 -crf 22 -c:a aac -strict experimental -movflags -g [same-number-as-framerate] faststart "$filePath"  &> /dev/null
+	#else
+	#	echo "file is already in correct format"
+	#fi
 
 	if [ ! -s "$filePath" ]; then 
 		echo "file still does not exist: $filePath"
@@ -75,20 +73,20 @@ function publish {
 		echo "published $propperTitle"
 	else
 		echo "error publishing $propperTitle"
-		echo `cat ~/.lbrynet/lbrynet*log | grep $var |tail -n3`
+		grep "$var" ~/.lbrynet/lbrynet*log |tail -n3
 	fi
 }
 
 function cleanUp {
 	if [ "$videoFileName" != "$propperTitle.mp4" ] && [ -s "$videoFileName" ] ; then 
 		echo "deleting $videoFileName"; 
-		rm $videoFileName; 
+		rm "$videoFileName"; 
 	fi
 }
 
 function main {
 	
-	cd $workingDir
+	cd "$workingDir" || exit
 	movies=()
 	while read -r var;	do
 		movies+=($var)
@@ -115,7 +113,7 @@ function main {
 function parseXML {
 	name=$1
 	shift
-	python3 $currentDir/parseXML.py "$name" ${@}
+	python3 "$currentDir/parseXML.py" "$name" "${@}"
 }
 
-cat movies.txt |main
+main < "$input"
